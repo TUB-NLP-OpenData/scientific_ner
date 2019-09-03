@@ -9,10 +9,10 @@ The configuration file (/src/main/resources/config.properties) points to the inp
 
 ```
 max.abstracts.sample=500
-text.input.venues=/home/souza/scierc/venues/venues.txt
+text.input.venues=src/main/resources/venues.txt
 output.filename=test.json
-gzip.input.folder=/home/souza/scierc
-minimum.year=2017
+gzip.input.folder=src/main/resources/
+minimum.year=2018
 ```
 
 #### Input data 
