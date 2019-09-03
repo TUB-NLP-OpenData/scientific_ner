@@ -36,7 +36,7 @@ semanticscholarindex-0.0.1-SNAPSHOT-jar-with-dependencies.jar
 - **Execute** the jar file:
 
 ```
-java -jar EventKG.graphGenerator-0.0.1-SNAPSHOT-jar-with-dependencies.jar
+java -jar semanticscholarindex-0.0.1-SNAPSHOT-jar-with-dependencies.jar
 ```
 - **Wait** until the program concludes the execution
 - **Output** is a JSON file (one abstract per line)
