@@ -1,5 +1,3 @@
-
-
 import json
 import pandas as pd
 import numpy as np
@@ -13,11 +11,6 @@ from pytorch_pretrained_bert import BertTokenizer, BertConfig
 from pytorch_pretrained_bert import BertForTokenClassification, BertAdam
 from seqeval.metrics import f1_score
 import re
-
-
-df = pd.read_json (r'file_test.json1', lines=True)
-
-
 from collections import namedtuple
 from typing import List, Tuple, NamedTuple
 import pandas as pd
@@ -25,7 +18,15 @@ import json
 import numpy as np
 from flair.data import iob2, iob_iobes
 from sklearn import metrics
-from seqeval.metrics import f1_score
+import transformers
+from transformers import BertForTokenClassification, AdamW
+transformers.__version__
+from seqeval.metrics import f1_score, accuracy_score
+from transformers import get_linear_schedule_with_warmup
+
+
+df = pd.read_json (r'file_test.json1', lines=True)
+
 
 BIO = {"B", "I", "O"}
 BIOES = {"B", "I", "O", "E", "S"}
@@ -212,8 +213,6 @@ def char_precise_spans_to_BIO_tagseq(
     return tags
 
 
-import re
-
 
 def regex_tokenizer(
     text, pattern=r"(?u)\b\w\w+\b"
@@ -223,7 +222,7 @@ def regex_tokenizer(
 
 def minimal_test_spans_to_bio_tagseq(text, spans):
 
-    
+
     return_text = []
     return_labels = []
     #text = "xxx xxy yy oyo"
@@ -248,15 +247,23 @@ def minimal_test_spans_to_bio_tagseq(text, spans):
 
 
 
+print ()
 ## Get pairs of sentences and their BIO tags
 
 sentences = []
 span_labels = []
 
-for i in range(df.shape[0]):
+#for i in range(df.shape[0]):
 
-    actual_text = df.iloc[i,4]
-    actual_labels = df.iloc[i,2]
+#    actual_text = df.iloc[i,4]
+#    actual_labels = df.iloc[i,2]
+
+for index, row in df.iterrows():
+    #print (row.keys())
+    actual_text = row['text']
+    actual_labels = row['labels']
+    #print (actual_text)
+    #print (actual_labels)
 
     pair_of_text_label = [actual_text,minimal_test_spans_to_bio_tagseq(actual_text,actual_labels)]
 
@@ -266,13 +273,13 @@ for i in range(df.shape[0]):
 data = {'sentences': sentences, 'labels':span_labels}
 df1 = pd.DataFrame(data)
 
-
+#print (len(df1))
 
 # Convert to tokenization system supported by BERT
 
 labels = span_labels
 
-MAX_LEN = 512
+MAX_LEN = 64
 
 device = torch.device("cpu")
 
@@ -339,10 +346,8 @@ attention_masks = [[float(i != 0.0) for i in ii] for ii in input_ids]
 
 # Split train and test
 
-tr_inputs, val_inputs, tr_tags, val_tags = train_test_split(input_ids, tags,
-                                                            random_state=2018, test_size=0.1)
-tr_masks, val_masks, _, _ = train_test_split(attention_masks, input_ids,
-                                             random_state=2018, test_size=0.1)
+tr_inputs, val_inputs, tr_tags, val_tags = train_test_split(input_ids, tags, test_size=0.3)
+tr_masks, val_masks, _, _ = train_test_split(attention_masks, input_ids, test_size=0.3)
 
 
 # Convert to pytorch tensors
@@ -356,7 +361,7 @@ val_masks = torch.tensor(val_masks)
 
 
 
-# Initialze dataloader 
+# Initialze dataloader
 
 #Batch size
 bs = 32
@@ -372,10 +377,6 @@ valid_dataloader = DataLoader(valid_data, sampler=valid_sampler, batch_size=bs)
 
 
 
-import transformers
-from transformers import BertForTokenClassification, AdamW
-
-transformers.__version__
 
 
 model = BertForTokenClassification.from_pretrained(
@@ -386,7 +387,7 @@ model = BertForTokenClassification.from_pretrained(
 )
 
 
-FULL_FINETUNING = True
+FULL_FINETUNING = False
 if FULL_FINETUNING:
     param_optimizer = list(model.named_parameters())
     no_decay = ['bias', 'gamma', 'beta']
@@ -400,7 +401,7 @@ else:
     param_optimizer = list(model.classifier.named_parameters())
     optimizer_grouped_parameters = [{"params": [p for n, p in param_optimizer]}]
 
-# Use Adam optimizer    
+# Use Adam optimizer
 optimizer = AdamW(
     optimizer_grouped_parameters,
     lr=3e-5,
@@ -409,9 +410,8 @@ optimizer = AdamW(
 
 
 
-from transformers import get_linear_schedule_with_warmup
 
-epochs = 3
+epochs = 10
 max_grad_norm = 1.0
 
 # Total number of training steps is number of batches * number of epochs.
@@ -426,7 +426,6 @@ scheduler = get_linear_schedule_with_warmup(
 
 
 
-from seqeval.metrics import f1_score, accuracy_score
 
 ## Store the average loss after each epoch so we can plot them.
 loss_values, validation_loss_values = [], []
@@ -518,11 +517,3 @@ for _ in trange(epochs, desc="Epoch"):
     print("Validation Accuracy: {}".format(accuracy_score(pred_tags, valid_tags)))
     print("Validation F1-Score: {}".format(f1_score(pred_tags, valid_tags)))
     print()
-
-    
-
-
-
-
-
-
