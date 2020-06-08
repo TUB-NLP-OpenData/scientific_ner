@@ -15,6 +15,7 @@ from collections import namedtuple
 from typing import List, Tuple, NamedTuple
 import pandas as pd
 import json
+import pickle
 import numpy as np
 from flair.data import iob2, iob_iobes
 from sklearn import metrics
@@ -250,7 +251,7 @@ def minimal_test_spans_to_bio_tagseq(text, spans):
 print ()
 ## Get pairs of sentences and their BIO tags
 
-sentences = []
+'''sentences = []
 span_labels = []
 
 #for i in range(df.shape[0]):
@@ -271,13 +272,58 @@ for index, row in df.iterrows():
     span_labels.append(pair_of_text_label[1])
 
 data = {'sentences': sentences, 'labels':span_labels}
-df1 = pd.DataFrame(data)
+df1 = pd.DataFrame(data)'''
+
+# list to store final processed data
+final = []
+    
+for total_range in range(df.shape[0]):
+    
+
+    # obtain bio tokens for particular data sample
+    candidate = minimal_test_spans_to_bio_tagseq(df.iloc[total_range,4], df.iloc[total_range,2])
+    text = df.iloc[total_range,4]
+    # split text into smaller sentences using regex
+    sentences = re.split(r' *[\.\?!][\'"\)\]]* *', text)
+    # logic to slice above obtained sentences from those in variable candidate
+    for lines in sentences:
+        # Get the last word in the regex split sentence
+        search = lines.split(" ")[-1]
+        # Search for the word in the bio tokens list and extract it from the original list
+        for i in range(len(candidate)):
+            if search == candidate[i][0]:
+                end = i + 1
+                break
+        final.append(candidate[:end])
+        candidate = candidate[end:]
+#split sentences 
+col1 = []
+col2 = []
+
+for sentence in final:
+    tags = []
+    full_sentence = str()
+    for words in sentence:
+        full_sentence = full_sentence + words[0]
+        full_sentence = full_sentence + " "
+        tags.append(words[1])
+        
+    col1.append(full_sentence)
+    col2.append(tags)
+
+# Remove entries with empty lists for col2 i.e. values    
+for i in range(len(col2)-1,-1,-1):
+    
+    if col2[i] == []:
+        
+        del col1[i]
+        del col2[i]
 
 #print (len(df1))
 
 # Convert to tokenization system supported by BERT
 
-labels = span_labels
+labels = col2
 
 MAX_LEN = 64
 
@@ -305,7 +351,7 @@ def tokenize_and_preserve_labels(sentence, text_labels):
 
 tokenized_texts_and_labels = [
     tokenize_and_preserve_labels(sent, labs)
-    for sent, labs in zip(sentences, labels)
+    for sent, labs in zip(col1, col2)
 ]
 
 
@@ -517,3 +563,7 @@ for _ in trange(epochs, desc="Epoch"):
     print("Validation Accuracy: {}".format(accuracy_score(pred_tags, valid_tags)))
     print("Validation F1-Score: {}".format(f1_score(pred_tags, valid_tags)))
     print()
+    with open('pred_tags.pkl', 'wb') as f:
+        pickle.dump(pred_tags,f)
+    with open('valid_tags.pkl', 'wb') as f:
+        pickle.dump(valid_tags,f)
